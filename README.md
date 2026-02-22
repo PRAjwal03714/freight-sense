@@ -18,15 +18,20 @@ Companies like Amazon, FedEx, and Flexport lose millions reacting to supply chai
 
 ## 📊 Results
 
-### Time-Series Forecasting Performance
-- **31% MAE improvement** over ARIMA baseline (1.38 → 0.95 days) on 811-shipment route validation
-- **Backtested** against Suez Canal blockage (2021) and COVID port closures (2020)
-- Successfully flagged high-risk signals **8+ days before peak disruption impact**
+### Time-Series Forecasting Performance ✅
+- **17.1% MAE improvement** over ARIMA baseline (1.38 → 1.15 days) using Amazon Chronos transformer
+- Implemented **rolling 7-day forecasts** for production-realistic evaluation
+- Validated on **811-shipment route** (Caguas, PR → New York City, 2016)
+- Zero-shot inference (no fine-tuning required) on single route dataset
 
-### NLP Pipeline Performance
-- **86% cost reduction** vs GPT-4 baseline through fine-tuned DistilBERT
-- **89% F1-score** on supply chain disruption event classification
-- **Sub-3s latency** processing 200+ concurrent route predictions
+### NLP Pipeline Performance 🚧
+- **In Progress** — Fine-tuning DistilBERT for supply chain NER and sentiment analysis
+- Target: 86% cost reduction vs GPT-4 baseline
+- Target: 89% F1-score on disruption event classification
+
+### Backtesting Validation 📅
+- **Planned** — Suez Canal blockage (March 2021) and COVID port closures (2020-2021)
+- Target: Flag high-risk signals 7-10 days before peak disruption impact
 
 ---
 
@@ -272,11 +277,13 @@ freightsense/
 - **MAE:** 1.3834 days
 - **Interpretation:** On average, predictions are off by ~1.4 days
 
-### Amazon Chronos (Deep Learning) — *In Progress*
-- **Target MAE:** <0.95 days (31% improvement over ARIMA)
-- **Architecture:** Pre-trained transformer with fine-tuning
-- **Training Data:** 180K+ multi-route historical delays
-- **Validation:** Backtesting against Suez Canal 2021 + COVID 2020
+### Amazon Chronos (Deep Learning) — ✅ Completed
+- **MAE:** 1.1468 days (17.1% improvement over ARIMA)
+- **Architecture:** Pre-trained transformer (zero-shot, no fine-tuning)
+- **Method:** Rolling 7-day forecasts with 512-point context window
+- **Training Data:** 648 shipments from single route
+- **Validation:** 163-shipment test set
+- **Next Steps:** Multi-route aggregation, fine-tuning for 25-30% improvement
 
 ---
 
@@ -314,18 +321,21 @@ FreightSense leverages **7 HuggingFace ML tasks** for comprehensive disruption p
 
 ## 🔬 Development Roadmap
 
-### ✅ Week 1 — Data Foundation (Completed)
+### ✅ Week 1-2 — Data Foundation + Time-Series Model (Completed)
 - [x] Docker infrastructure (TimescaleDB, Redis)
 - [x] API integrations (Weather, News)
-- [x] Kaggle dataset ingestion (180K orders)
+- [x] Kaggle dataset ingestion (180K orders, 39K routes)
 - [x] ARIMA baseline model (MAE: 1.38 days)
+- [x] **Amazon Chronos transformer (MAE: 1.15 days, 17.1% improvement)**
+- [x] Rolling 7-day forecast implementation
+- [x] Performance visualization and metrics
 
-### 🚧 Week 2 — ML Pipeline (In Progress)
-- [ ] Fine-tune Amazon Chronos on multi-route data
+### 🚧 Week 2 — NLP Pipeline (Next)
 - [ ] Fine-tune DistilBERT for supply chain NER
 - [ ] Build ChromaDB historical pattern store
-- [ ] Implement all 7 HuggingFace tasks
-- [ ] Achieve 31% MAE improvement target
+- [ ] Implement remaining 6 HuggingFace tasks
+- [ ] News sentiment classification pipeline
+- [ ] Zero-shot disruption categorization
 
 ### 📅 Week 3 — Production Layer (Planned)
 - [ ] FastAPI backend with model serving
@@ -356,7 +366,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👤 Author
 
-**Prajwal Venugopal**  
+**Prajwal V**  
 MS Computer Science, Indiana University Bloomington (GPA 4.0)  
 Graduating May 2026
 
