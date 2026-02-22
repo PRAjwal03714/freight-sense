@@ -1,0 +1,21 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Data (too large for git)
+data/raw/
+data/processed/
+data/kaggle/
+
+# ML model weights
+*.pt
+*.bin
+*.ckpt
+
+# OS
+.DS_Store
