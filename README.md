@@ -356,7 +356,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👤 Author
 
-**Prajwal V**  
+**Prajwal Venugopal**  
 MS Computer Science, Indiana University Bloomington (GPA 4.0)  
 Graduating May 2026
 
