@@ -360,8 +360,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 MS Computer Science, Indiana University Bloomington (GPA 4.0)  
 Graduating May 2026
 
-📧 Email: [vprajwal714@gmail.com](vprajwal714@gmail.com)
-💼 LinkedIn: [https://www.linkedin.com/in/prajwalvenugopal/](https://www.linkedin.com/in/prajwalvenugopal/)
+📧 Email: [vprajwal714@gmail.com](vprajwal714@gmail.com)</br>
+💼 LinkedIn: [https://www.linkedin.com/in/prajwalvenugopal/](https://www.linkedin.com/in/prajwalvenugopal/)</br>
 🐙 GitHub: [@PRAjwal03714](https://github.com/PRAjwal03714)
 
 ---
