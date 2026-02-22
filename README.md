@@ -34,26 +34,26 @@ Companies like Amazon, FedEx, and Flexport lose millions reacting to supply chai
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Real-Time Data Sources                    │
-│  (Weather API • News API • Vessel Tracking • Trade Data)     │
+│                    Real-Time Data Sources                   │
+│  (Weather API • News API • Vessel Tracking • Trade Data)    │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Kafka Streams / Redis Ingestion                 │
+│              Kafka Streams / Redis Ingestion                │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                  TimescaleDB (Time-Series)                   │
-│         • 180K+ historical delay records (2015-2018)         │
-│         • 39K+ unique shipping routes                        │
-│         • Automatic time-based partitioning                  │
+│                  TimescaleDB (Time-Series)                  │
+│         • 180K+ historical delay records (2015-2018)        │
+│         • 39K+ unique shipping routes                       │
+│         • Automatic time-based partitioning                 │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                      ML Pipeline Layer                       │
+│                      ML Pipeline Layer                      │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │ Amazon Chronos (HuggingFace)                         │   │
 │  │ → Delay probability forecasting (7/14/30-day)        │   │
@@ -76,21 +76,21 @@ Companies like Amazon, FedEx, and Flexport lose millions reacting to supply chai
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                  Risk Score Generation                       │
-│              (0-100 per route, real-time)                    │
+│                  Risk Score Generation                      │
+│              (0-100 per route, real-time)                   │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              FastAPI Backend + WebSocket                     │
+│              FastAPI Backend + WebSocket                    │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│         React Dashboard (Route Risk Heatmap)                 │
-│    • Real-time risk score updates                            │
-│    • 7/14/30-day delay probability forecasts                 │
-│    • Historical disruption pattern matches                   │
+│         React Dashboard (Route Risk Heatmap)                │
+│    • Real-time risk score updates                           │
+│    • 7/14/30-day delay probability forecasts                │
+│    • Historical disruption pattern matches                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
