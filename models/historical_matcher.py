@@ -46,13 +46,13 @@ class HistoricalEventStore:
         """
         print("🔧 Initializing Historical Event Store...")
         
-        # Create ChromaDB client with persistence
-        self.client = chromadb.Client(Settings(
-            persist_directory=persist_directory,
-            anonymized_telemetry=False
-        ))
+        import os
+        os.makedirs(persist_directory, exist_ok=True)
         
-        # Create or load collection
+        # Create ChromaDB client with persistence
+        self.client = chromadb.PersistentClient(path=persist_directory)
+        
+        # Create or get existing collection
         try:
             self.collection = self.client.get_collection("supply_chain_events")
             print(f"   ✅ Loaded existing collection ({self.collection.count()} events)")
@@ -67,7 +67,7 @@ class HistoricalEventStore:
         print("   Loading sentence transformer model...")
         self.embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
         print("   ✅ Embedder ready (384-dimensional vectors)\n")
-    
+        
     def add_event(self, 
                   headline: str,
                   event_date: datetime,

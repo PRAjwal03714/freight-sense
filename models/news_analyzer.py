@@ -180,6 +180,61 @@ class NewsAnalyzer:
         
         return categories
     
+    def summarize(self, text: str, max_length: int = 50) -> str:
+        """
+        Summarize long text into concise alert.
+        
+        HuggingFace Task #6: Summarization
+        Model: sshleifer/distilbart-cnn-12-6 (smaller, faster)
+        
+        Args:
+            text: Long article or report
+            max_length: Maximum words in summary
+        
+        Returns:
+            Concise one-line summary
+        """
+        
+        # Load summarizer on first use (lazy loading)
+        if not hasattr(self, 'summarizer'):
+            print("   Loading summarization model (first time only)...")
+            # Use text-generation pipeline with BART
+            from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+            
+            model_name = "sshleifer/distilbart-cnn-12-6"
+            self.sum_tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.sum_model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        
+        # Already short, no need to summarize
+        if len(text.split()) < 30:
+            return text
+        
+        # Tokenize
+        inputs = self.sum_tokenizer(
+            text,
+            max_length=1024,
+            truncation=True,
+            return_tensors="pt"
+        )
+        
+        # Generate summary
+        summary_ids = self.sum_model.generate(
+            inputs["input_ids"],
+            max_length=max_length,
+            min_length=20,
+            length_penalty=2.0,
+            num_beams=4,
+            early_stopping=True
+        )
+        
+        # Decode
+        summary = self.sum_tokenizer.decode(
+            summary_ids[0],
+            skip_special_tokens=True
+        )
+        
+        return summary
+    
     def analyze(self, headline: str) -> Dict:
         """
         Full analysis pipeline - runs all 3 tasks.
