@@ -62,13 +62,21 @@ class RiskExplainer:
     
     def get_connection(self):
         """Get database connection."""
-        return psycopg2.connect(
-            host=os.getenv("TIMESCALE_HOST", "localhost"),
-            port=os.getenv("TIMESCALE_PORT", 5434),
-            dbname=os.getenv("TIMESCALE_DB", "freightsense"),
-            user=os.getenv("TIMESCALE_USER", "postgres"),
-            password=os.getenv("TIMESCALE_PASSWORD", "postgres")
-        )
+        # Prioritize DATABASE_URL (Render/production)
+        database_url = os.getenv("DATABASE_URL")
+        
+        if database_url:
+            print(f"📡 Connecting to RENDER database...")
+            return psycopg2.connect(database_url)
+        else:
+            print(f"📡 Connecting to LOCAL database...")
+            return psycopg2.connect(
+                host=os.getenv("TIMESCALE_HOST", "localhost"),
+                port=int(os.getenv("TIMESCALE_PORT", 5434)),
+                dbname=os.getenv("TIMESCALE_DB", "freightsense"),
+                user=os.getenv("TIMESCALE_USER", "postgres"),
+                password=os.getenv("TIMESCALE_PASSWORD", "postgres")
+            )
     
     def get_recent_news_for_location(self, location: str, days: int = 14) -> List[Dict]:
         """Get recent news RELEVANT to a specific location."""
@@ -197,18 +205,18 @@ class RiskExplainer:
             dests = []
             
             # Read ports from the registry file
-            import json
-            with open('data/port_registry.json', 'r') as f:
-                port_data = json.load(f)
-            
-            origin_info = None
-            dest_info = None
-            
-            for port in port_data:
-                if port['name'] == origin_port:
-                    origin_info = port
-                if port['name'] == dest_port:
-                    dest_info = port
+            # Get ports from ports.py
+            from api.ports import GLOBAL_PORTS
+
+            origin_data = GLOBAL_PORTS.get(origin_port)
+            dest_data = GLOBAL_PORTS.get(dest_port)
+
+            if origin_data and dest_data:
+                origin_info = origin_data
+                dest_info = dest_data
+            else:
+                origin_info = None
+                dest_info = None
             
             if not (origin_info and dest_info):
                 return self.simple_forecast(weather_severity, news_risk)
@@ -227,10 +235,9 @@ class RiskExplainer:
             return R * c
         
         distance_km = haversine(
-            origin_info['latitude'], origin_info['longitude'],
-            dest_info['latitude'], dest_info['longitude']
-        )
-        
+    origin_info['lat'], origin_info['lon'],
+    dest_info['lat'], dest_info['lon']
+)
         # Baseline: Container ships average 2000 km/day effective rate
         baseline_transit_days = distance_km / 2000.0
         

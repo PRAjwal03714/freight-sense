@@ -14,13 +14,26 @@ import json  # ← Make sure this is imported
 load_dotenv()
 
 def get_connection():
-    return psycopg2.connect(
-        host=os.getenv("TIMESCALE_HOST", "localhost"),
-        port=int(os.getenv("TIMESCALE_PORT", 5434)),
-        dbname=os.getenv("TIMESCALE_DB", "freightsense"),
-        user=os.getenv("TIMESCALE_USER", "postgres"),
-        password=os.getenv("TIMESCALE_PASSWORD", "postgres")
-    )
+    """Get database connection - prioritize DATABASE_URL for Render."""
+    
+    # Load environment variables
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    database_url = os.getenv("DATABASE_URL")
+    
+    if database_url:
+        print(f"📡 Connecting to RENDER database...")
+        return psycopg2.connect(database_url)
+    else:
+        print(f"📡 Connecting to LOCAL database...")
+        return psycopg2.connect(
+            host=os.getenv("TIMESCALE_HOST", "localhost"),
+            port=int(os.getenv("TIMESCALE_PORT", 5434)),
+            dbname=os.getenv("TIMESCALE_DB", "freightsense"),
+            user=os.getenv("TIMESCALE_USER", "postgres"),
+            password=os.getenv("TIMESCALE_PASSWORD", "postgres")
+        )
 
 def main():
     print("=" * 70)
