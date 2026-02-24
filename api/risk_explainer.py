@@ -67,13 +67,26 @@ class RiskExplainer:
 
     @property
     def event_store(self):
-        """Lazy load HistoricalEventStore."""
+        """Lazy load HistoricalEventStore (gracefully handles low-memory environments)."""
         if self._event_store is None:
-            print("   📥 Loading HistoricalEventStore...")
-            from models.historical_matcher import HistoricalEventStore
-            self._event_store = HistoricalEventStore()
-        return self._event_store
+            skip_chromadb = os.getenv("SKIP_CHROMADB", "false").lower() == "true"
+            
+            if skip_chromadb:
+                print("   ⚠️  ChromaDB disabled for production deployment (memory constraints)")
+                print("   💡 Historical pattern matching available in local development")
+                
+                class MockEventStore:
+                    def find_similar_events(self, *args, **kwargs):
+                        return []
+                
+                self._event_store = MockEventStore()
+            else:
+                print("   📥 Loading HistoricalEventStore with ChromaDB...")
+                from models.historical_matcher import HistoricalEventStore
+                self._event_store = HistoricalEventStore()
         
+        return self._event_store
+
     def get_connection(self):
         """Get database connection."""
         # Prioritize DATABASE_URL (Render/production)
@@ -91,7 +104,7 @@ class RiskExplainer:
                 user=os.getenv("TIMESCALE_USER", "postgres"),
                 password=os.getenv("TIMESCALE_PASSWORD", "postgres")
             )
-    
+
     def get_recent_news_for_location(self, location: str, days: int = 14) -> List[Dict]:
         """Get recent news RELEVANT to a specific location."""
         
@@ -176,7 +189,7 @@ class RiskExplainer:
                     break
         
         return unique_relevant
-    
+        
     def calculate_combined_risk(self, 
                             weather_severity: float,
                             news_risk: float,

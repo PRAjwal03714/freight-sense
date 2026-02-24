@@ -23,7 +23,8 @@ from transformers import (
     pipeline,
     AutoTokenizer,
     AutoModelForTokenClassification,
-    AutoModelForSequenceClassification
+    AutoModelForSequenceClassification,
+    AutoModelForSeq2SeqLM
 )
 import torch
 from typing import Dict, List
@@ -34,37 +35,20 @@ class NewsAnalyzer:
     """
     Analyzes supply chain news headlines using 3 HuggingFace models.
     
-    Models used:
-    1. NER: dslim/bert-base-NER (general entity extraction)
-    2. Sentiment: distilbert-base-uncased-finetuned-sst-2-english
-    3. Zero-shot: facebook/bart-large-mnli
+    Models use LAZY LOADING to reduce memory footprint on startup.
+    Models only load when first accessed.
     """
     
     def __init__(self):
-        """Initialize all 3 models. Takes ~30 seconds on first run."""
-        print("🔧 Initializing News Analyzer...")
+        """Initialize with lazy loading (models load on first use)."""
+        print("🔧 Initializing News Analyzer (lazy loading)...")
         
-        # Model 1: Named Entity Recognition
-        print("   Loading NER model...")
-        self.ner_pipeline = pipeline(
-            "ner",
-            model="dslim/bert-base-NER",
-            aggregation_strategy="simple"  # Combines word pieces
-        )
-        
-        # Model 2: Sentiment Analysis
-        print("   Loading Sentiment model...")
-        self.sentiment_pipeline = pipeline(
-            "sentiment-analysis",
-            model="distilbert-base-uncased-finetuned-sst-2-english"
-        )
-        
-        # Model 3: Zero-Shot Classification
-        print("   Loading Zero-shot classifier...")
-        self.classifier_pipeline = pipeline(
-            "zero-shot-classification",
-            model="facebook/bart-large-mnli"
-        )
+        # Model placeholders (loaded on first access)
+        self._ner_pipeline = None
+        self._sentiment_pipeline = None
+        self._classifier_pipeline = None
+        self._sum_tokenizer = None
+        self._sum_model = None
         
         # Supply chain disruption categories
         self.disruption_categories = [
@@ -77,7 +61,41 @@ class NewsAnalyzer:
             "Demand Surge"
         ]
         
-        print("✅ News Analyzer ready!\n")
+        print("✅ News Analyzer ready (models will load on first use)!\n")
+    
+    @property
+    def ner_pipeline(self):
+        """Lazy load NER model."""
+        if self._ner_pipeline is None:
+            print("   📥 Loading NER model (first time only)...")
+            self._ner_pipeline = pipeline(
+                "ner",
+                model="dslim/bert-base-NER",
+                aggregation_strategy="simple"
+            )
+        return self._ner_pipeline
+    
+    @property
+    def sentiment_pipeline(self):
+        """Lazy load sentiment model."""
+        if self._sentiment_pipeline is None:
+            print("   📥 Loading Sentiment model (first time only)...")
+            self._sentiment_pipeline = pipeline(
+                "sentiment-analysis",
+                model="distilbert-base-uncased-finetuned-sst-2-english"
+            )
+        return self._sentiment_pipeline
+    
+    @property
+    def classifier_pipeline(self):
+        """Lazy load zero-shot classifier."""
+        if self._classifier_pipeline is None:
+            print("   📥 Loading Zero-shot classifier (first time only)...")
+            self._classifier_pipeline = pipeline(
+                "zero-shot-classification",
+                model="facebook/bart-large-mnli"
+            )
+        return self._classifier_pipeline
     
     def extract_entities(self, text: str) -> Dict[str, List[str]]:
         """
@@ -186,31 +204,21 @@ class NewsAnalyzer:
         
         HuggingFace Task #6: Summarization
         Model: sshleifer/distilbart-cnn-12-6 (smaller, faster)
-        
-        Args:
-            text: Long article or report
-            max_length: Maximum words in summary
-        
-        Returns:
-            Concise one-line summary
         """
         
-        # Load summarizer on first use (lazy loading)
-        if not hasattr(self, 'summarizer'):
-            print("   Loading summarization model (first time only)...")
-            # Use text-generation pipeline with BART
-            from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-            
+        # Lazy load summarizer
+        if self._sum_tokenizer is None or self._sum_model is None:
+            print("   📥 Loading summarization model (first time only)...")
             model_name = "sshleifer/distilbart-cnn-12-6"
-            self.sum_tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.sum_model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            self._sum_tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self._sum_model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
         
         # Already short, no need to summarize
         if len(text.split()) < 30:
             return text
         
         # Tokenize
-        inputs = self.sum_tokenizer(
+        inputs = self._sum_tokenizer(
             text,
             max_length=1024,
             truncation=True,
@@ -218,7 +226,7 @@ class NewsAnalyzer:
         )
         
         # Generate summary
-        summary_ids = self.sum_model.generate(
+        summary_ids = self._sum_model.generate(
             inputs["input_ids"],
             max_length=max_length,
             min_length=20,
@@ -228,7 +236,7 @@ class NewsAnalyzer:
         )
         
         # Decode
-        summary = self.sum_tokenizer.decode(
+        summary = self._sum_tokenizer.decode(
             summary_ids[0],
             skip_special_tokens=True
         )
@@ -252,7 +260,7 @@ class NewsAnalyzer:
         """
         print(f"\n📰 Analyzing: '{headline[:60]}...'")
         
-        # Run all 3 models
+        # Run all 3 models (will lazy load on first call)
         entities = self.extract_entities(headline)
         sentiment = self.analyze_sentiment(headline)
         categories = self.categorize_disruption(headline)
@@ -270,6 +278,7 @@ class NewsAnalyzer:
         print(f"   Primary category: {categories[0]['category'] if categories else 'Unknown'}")
         
         return result
+
 
 def main():
     """Demo: Analyze sample supply chain headlines."""
@@ -311,6 +320,7 @@ def main():
     
     print("\n✅ Analysis complete!")
     print(f"💾 Analyzed {len(headlines)} headlines using 3 HuggingFace models\n")
+
 
 if __name__ == "__main__":
     main()
