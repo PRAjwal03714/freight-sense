@@ -259,37 +259,47 @@ def main():
     
     # Load recent news from TimescaleDB
     print("\n📥 Loading recent news events from database...")
-    
+
     import psycopg2
     import os
     from dotenv import load_dotenv
+
     load_dotenv()
-    
-    conn = psycopg2.connect(
-        host=os.getenv("TIMESCALE_HOST", "localhost"),
-        port=os.getenv("TIMESCALE_PORT", 5434),
-        dbname=os.getenv("TIMESCALE_DB", "freightsense"),
-        user=os.getenv("TIMESCALE_USER", "postgres"),
-        password=os.getenv("TIMESCALE_PASSWORD", "postgres")
-    )
-    
+
+    # Check for DATABASE_URL first (Render/production)
+    database_url = os.getenv("DATABASE_URL")
+
+    if database_url:
+        print("📡 Connecting to production database...")
+        conn = psycopg2.connect(database_url)
+    else:
+        print("📡 Connecting to local database...")
+        conn = psycopg2.connect(
+            host=os.getenv("TIMESCALE_HOST", "localhost"),
+            port=int(os.getenv("TIMESCALE_PORT", 5434)),
+            dbname=os.getenv("TIMESCALE_DB", "freightsense"),
+            user=os.getenv("TIMESCALE_USER", "postgres"),
+            password=os.getenv("TIMESCALE_PASSWORD", "postgres")
+        )
+
     cur = conn.cursor()
     cur.execute("""
         SELECT time, headline, source, risk_category, 
-               sentiment_score, affected_routes, raw_json
+            sentiment_score, affected_routes, raw_json
         FROM news_events
         ORDER BY time DESC
         LIMIT 50;
     """)
-    
+
     events = cur.fetchall()
     cur.close()
     conn.close()
-    
+
     print(f"✅ Loaded {len(events)} events from database\n")
-    
+
     # Add to ChromaDB
     print("📥 Adding events to ChromaDB...")
+    # ... rest of your code
     
     for event in events:
         time, headline, source, category, risk_score, locations, raw_json = event
