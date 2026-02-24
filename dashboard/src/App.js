@@ -10,13 +10,13 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { Newspaper, Search } from 'lucide-react';
+import { Newspaper, Search, Info } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function App() {
   // State management
-  const [routes, setRoutes] = useState({ origins: [], destinations: [] });
+  const [ports, setPorts] = useState([]);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [explanation, setExplanation] = useState(null);
@@ -27,9 +27,10 @@ function App() {
   useEffect(() => {
     axios.get(`${API_BASE_URL}/api/routes`)
       .then(response => {
-        setRoutes(response.data);
-        setOrigin(response.data.origins[0]);
-        setDestination(response.data.destinations[3]); // Default to 4th option
+        const portList = response.data.ports || [];
+        setPorts(portList);
+        setOrigin(portList[0] || '');
+        setDestination(portList[3] || '');
       })
       .catch(err => console.error('Failed to fetch routes:', err));
   }, []);
@@ -63,7 +64,7 @@ function App() {
     }
   };
 
-  // Risk score color
+  // Risk score color helpers
   const getRiskColor = (score) => {
     if (score >= 70) return 'text-red-600';
     if (score >= 50) return 'text-yellow-600';
@@ -121,6 +122,31 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Production Notice Banner */}
+        <div className="bg-blue-900 border border-blue-700 rounded-xl p-5 mb-8 shadow-lg">
+          <div className="flex items-start gap-3">
+            <Info className="w-6 h-6 text-blue-300 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-100 mb-1">
+                Production Demo (Free Tier Deployment)
+              </h3>
+              <p className="text-sm text-blue-200">
+                Running on Render's 512MB free tier. ChromaDB historical pattern matching 
+                available in{' '}
+                <a 
+                  href="https://github.com/PRAjwal03714/freight-sense" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-blue-300 hover:text-blue-100 font-medium"
+                >
+                  local development
+                </a>
+                . Full implementation with 7 HuggingFace tasks documented in GitHub.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Route Selection */}
         <div className="bg-slate-800 rounded-xl shadow-xl p-8 mb-8 border border-slate-700">
           <h2 className="text-xl font-semibold mb-6 text-slate-200">
@@ -137,7 +163,7 @@ function App() {
                 onChange={(e) => setOrigin(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               >
-                {routes.origins.map((port) => (
+                {ports.map((port) => (
                   <option key={port} value={port}>{port}</option>
                 ))}
               </select>
@@ -152,7 +178,7 @@ function App() {
                 onChange={(e) => setDestination(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               >
-                {routes.destinations.map((port) => (
+                {ports.map((port) => (
                   <option key={port} value={port}>{port}</option>
                 ))}
               </select>
@@ -217,7 +243,7 @@ function App() {
                 <div>
                   <p className="text-sm text-slate-600 mb-1">7-Day Forecast</p>
                   <p className="text-3xl font-bold">
-                    +{explanation.forecast['7_day']} days
+                    +{explanation.forecast['7_day'].toFixed(1)} days
                   </p>
                   <p className="text-sm text-slate-600 mt-1">delay expected</p>
                 </div>
@@ -283,9 +309,12 @@ function App() {
               {!explanation.news_signals || explanation.news_signals.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 bg-slate-700/50 rounded-lg border border-slate-600">
                   <Newspaper className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium mb-2">No location-specific news available</p>
+                  <p className="text-lg font-medium text-slate-300 mb-2">No Breaking News</p>
                   <p className="text-sm">
-                    The system will use general supply chain trends for risk calculation.
+                    No location-specific disruptions detected for this route.
+                  </p>
+                  <p className="text-xs mt-2 opacity-75">
+                    General supply chain trends used for risk calculation
                   </p>
                 </div>
               ) : (
@@ -306,7 +335,7 @@ function App() {
               )}
             </div>
 
-            {/* Similar Events */}
+            {/* Similar Historical Events */}
             <div className="bg-slate-800 rounded-xl shadow-xl p-8 border border-slate-700">
               <div className="flex items-center gap-3 mb-6">
                 <Search className="w-6 h-6 text-blue-400" />
@@ -318,9 +347,10 @@ function App() {
               {!explanation.similar_events || explanation.similar_events.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 bg-slate-700/50 rounded-lg border border-slate-600">
                   <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium mb-2">No similar historical events found</p>
-                  <p className="text-sm">
-                    This route may have limited historical disruption data.
+                  <p className="text-lg font-medium text-slate-300 mb-2">Historical Pattern Matching</p>
+                  <p className="text-sm mb-1">Available in full deployment with ChromaDB</p>
+                  <p className="text-xs opacity-75">
+                    Risk assessment based on current weather, news, and ML forecasting
                   </p>
                 </div>
               ) : (
@@ -350,7 +380,7 @@ function App() {
             <div className="bg-slate-800 rounded-xl shadow-xl p-8 border border-slate-700">
               <h3 className="text-xl font-semibold mb-6 flex items-center text-slate-200">
                 <span className="text-2xl mr-3">📈</span>
-                Delay Forecast
+                Delay Forecast ({explanation.forecast_method})
               </h3>
               
               <ResponsiveContainer width="100%" height={300}>
@@ -378,7 +408,7 @@ function App() {
               Select a route to begin
             </h3>
             <p className="text-slate-400 max-w-md mx-auto">
-              Choose an origin and destination port above, then click "Explain Risk" to generate a comprehensive risk assessment powered by 7 HuggingFace ML models.
+              Choose an origin and destination port above, then click "Explain Risk" to generate a comprehensive risk assessment powered by AI forecasting, real-time weather, and news analysis.
             </p>
           </div>
         )}
@@ -389,7 +419,7 @@ function App() {
         <div className="max-w-7xl mx-auto px-6 py-6 text-center text-slate-400 text-sm">
           <p>FreightSense © 2026 | Powered by 7 HuggingFace Tasks + Real-Time Data</p>
           <p className="text-xs mt-2 text-slate-500">
-            RSS News • Live Weather API • ChromaDB Vector Search • Amazon Chronos Forecasting
+            RSS News • Live Weather API • Amazon Chronos Forecasting • Redis Caching
           </p>
         </div>
       </footer>
