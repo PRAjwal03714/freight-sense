@@ -1,177 +1,102 @@
-"""
-Test News Analyzer on Real Headlines
-
-What this does:
-1. Fetches live supply chain news from NewsAPI (last 24 hours)
-2. Runs our NewsAnalyzer on each headline
-3. Shows which ones have high risk scores
-4. Saves results to database
-
-Why this matters:
-- Proves the system works on REAL data (not just test cases)
-- Builds historical database for ChromaDB pattern matching
-- Generates real risk signals for the explanation engine
-"""
+"""Supply Chain News Analysis - RSS Version with Unique Timestamps"""
 
 import sys
 sys.path.append(".")
 
-from ingestion.news import fetch_supply_chain_news
+from ingestion.news_rss import fetch_supply_chain_news_rss
 from models.news_analyzer import NewsAnalyzer
 import psycopg2
-from datetime import datetime
 import os
+from datetime import datetime, timedelta  # ← Add timedelta
 from dotenv import load_dotenv
+import json  # ← Make sure this is imported
 
 load_dotenv()
 
 def get_connection():
     return psycopg2.connect(
         host=os.getenv("TIMESCALE_HOST", "localhost"),
-        port=os.getenv("TIMESCALE_PORT", 5434),
+        port=int(os.getenv("TIMESCALE_PORT", 5434)),
         dbname=os.getenv("TIMESCALE_DB", "freightsense"),
         user=os.getenv("TIMESCALE_USER", "postgres"),
         password=os.getenv("TIMESCALE_PASSWORD", "postgres")
     )
 
-def save_to_database(article, analysis):
-    """
-    Save analyzed news to the news_events table.
+def main():
+    print("=" * 70)
+    print("SUPPLY CHAIN NEWS ANALYSIS - RSS VERSION")
+    print("=" * 70)
     
-    Schema reminder:
-    - time: when the news was published
-    - headline: the raw headline text
-    - source: news outlet (Reuters, Bloomberg, etc.)
-    - affected_routes: array of locations mentioned
-    - risk_category: primary disruption type
-    - sentiment_score: risk signal (-1 to +1)
-    - raw_json: full analysis for later retrieval
-    """
+    articles = fetch_supply_chain_news_rss(max_articles=30)
+    
+    if not articles:
+        print("❌ No articles fetched!")
+        return
+    
+    print(f"\n✅ Fetched {len(articles)} supply chain news articles\n")
+    
+    analyzer = NewsAnalyzer()
     conn = get_connection()
     cur = conn.cursor()
     
-    # Extract data
-    published_at = datetime.fromisoformat(article['published_at'].replace('Z', '+00:00'))
-    headline = article['headline']
-    source = article['source']
+    stored = 0
+    timestamp_offset = 0  # ← ADD THIS
     
-    # From analysis
-    locations = analysis['entities']['locations']
-    primary_category = analysis['categories'][0]['category'] if analysis['categories'] else 'Unknown'
-    risk_score = analysis['sentiment']['risk_signal']
-    
-    # Store full analysis as JSON
-    import json
-    raw_json = json.dumps(analysis)
-    
-    # Insert
-    cur.execute("""
-        INSERT INTO news_events (
-            time, headline, source, 
-            affected_routes, risk_category, 
-            sentiment_score, raw_json
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT DO NOTHING;
-    """, (
-        published_at,
-        headline,
-        source,
-        locations,  # PostgreSQL array
-        primary_category,
-        risk_score,
-        raw_json
-    ))
+    for article in articles:
+        headline = article['headline']
+        
+        print("=" * 70)
+        print(f"📰 Analyzing: '{headline[:70]}...'")
+        
+        analysis = analyzer.analyze(headline)
+        
+        locations = analysis['entities']['locations']
+        orgs = analysis['entities']['organizations']
+        print(f"   Entities: {locations} (locations), {orgs} (orgs)")
+        print(f"   Sentiment: {analysis['sentiment']['label']} (risk: {analysis['sentiment']['risk_signal']:.2f})")
+        
+        if analysis['categories']:
+            cat = analysis['categories'][0]
+            print(f"   Primary category: {cat['category']}")
+        
+        try:
+            pub_date = datetime.fromisoformat(article['published_at'].replace('Z', '+00:00'))
+            
+            # ADD THIS: Make each timestamp unique
+            pub_date = pub_date + timedelta(seconds=timestamp_offset)
+            timestamp_offset += 1
+            
+            cur.execute("""
+                INSERT INTO news_events (
+                    time, headline, source, 
+                    affected_routes, risk_category, 
+                    sentiment_score, raw_json
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s);
+            """, (
+                pub_date,
+                headline,
+                article['source'],
+                locations,
+                analysis['categories'][0]['category'] if analysis['categories'] else 'Unknown',
+                analysis['sentiment']['risk_signal'],
+                json.dumps(analysis)
+            ))
+            
+            if cur.rowcount > 0:
+                stored += 1
+                print(f"   ✅ Stored in database")
+            
+        except Exception as e:
+            print(f"   ⚠️  Storage error: {e}")
+            conn.rollback()
     
     conn.commit()
     cur.close()
     conn.close()
-
-def main():
-    print("=" * 70)
-    print("REAL-TIME NEWS ANALYSIS TEST")
-    print("=" * 70)
     
-    # Fetch real news
-    print("\n📡 Fetching live supply chain news from NewsAPI...")
-    articles = fetch_supply_chain_news(days_back=2)  # Last 2 days
-    
-    if not articles:
-        print("❌ No articles found. Check your NEWS_API_KEY in .env")
-        return
-    
-    print(f"✅ Fetched {len(articles)} articles\n")
-    
-    # Initialize analyzer
-    analyzer = NewsAnalyzer()
-    
-    # Analyze each article
-    print("=" * 70)
-    print("ANALYZING HEADLINES")
-    print("=" * 70)
-    
-    analyzed = []
-    high_risk = []
-    
-    for i, article in enumerate(articles[:15], 1):  # First 15 articles
-        print(f"\n[{i}/{min(15, len(articles))}]")
-        
-        result = analyzer.analyze(article['headline'])
-        
-        # Save to database
-        try:
-            save_to_database(article, result)
-            print(f"   💾 Saved to database")
-        except Exception as e:
-            print(f"   ⚠️  Database save failed: {str(e)[:50]}")
-        
-        analyzed.append({
-            'article': article,
-            'analysis': result
-        })
-        
-        # Track high-risk headlines
-        if result['sentiment']['risk_signal'] > 0.7:
-            high_risk.append({
-                'headline': article['headline'],
-                'risk': result['sentiment']['risk_signal'],
-                'category': result['categories'][0]['category'] if result['categories'] else 'Unknown',
-                'locations': result['entities']['locations']
-            })
-    
-    # Summary
     print("\n" + "=" * 70)
-    print("📊 ANALYSIS SUMMARY")
+    print(f"✅ Stored {stored} new articles in database")
     print("=" * 70)
-    
-    print(f"\nTotal analyzed: {len(analyzed)}")
-    print(f"High risk (>0.7): {len(high_risk)}")
-    
-    if high_risk:
-        print("\n🚨 HIGH RISK HEADLINES:")
-        print("-" * 70)
-        for item in high_risk:
-            print(f"\nRisk: {item['risk']:.2f} | Category: {item['category']}")
-            print(f"Headline: {item['headline'][:80]}...")
-            if item['locations']:
-                print(f"Affected: {', '.join(item['locations'])}")
-    
-    # Category breakdown
-    from collections import Counter
-    categories = [a['analysis']['categories'][0]['category'] 
-                  for a in analyzed if a['analysis']['categories']]
-    category_counts = Counter(categories)
-    
-    print("\n📋 DISRUPTION TYPES:")
-    print("-" * 70)
-    for category, count in category_counts.most_common():
-        print(f"{category:.<40} {count}")
-    
-    # Sentiment distribution
-    avg_risk = sum(a['analysis']['sentiment']['risk_signal'] for a in analyzed) / len(analyzed)
-    print(f"\n📈 Average Risk Signal: {avg_risk:.2f}")
-    
-    print("\n✅ Real-time news analysis complete!")
-    print(f"💾 {len(analyzed)} articles saved to news_events table\n")
 
 if __name__ == "__main__":
     main()
