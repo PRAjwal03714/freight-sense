@@ -53,9 +53,8 @@ explainer = None
 
 @app.on_event("startup")
 async def startup_event():
-    """Load ML models on startup."""
-    global explainer
-    logger.info("📦 Loading ML models...")
+    logger.info("🚀 Starting FreightSense API (Production Mode)...")
+    logger.info("✅ API ready! (Models will lazy-load on first request)")
     
     try:
         explainer = RiskExplainer()
