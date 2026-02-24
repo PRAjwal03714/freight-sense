@@ -48,18 +48,32 @@ class RiskExplainer:
     """
     
     def __init__(self):
-        """Initialize all components."""
-        print("🔧 Initializing Risk Explanation Engine...")
-        print("   This combines all 7 HuggingFace tasks + Weather API\n")
+        """Initialize with lazy loading."""
+        print("🔧 Initializing Risk Explanation Engine (lazy loading)...")
         
-        # Component 1: News Analysis (Tasks #2, #3, #4, #6)
-        self.news_analyzer = NewsAnalyzer()
-        
-        # Component 2: Historical Pattern Matching (Task #5)
-        self.event_store = HistoricalEventStore()
+        self._news_analyzer = None
+        self._event_store = None
         
         print("✅ Risk Explanation Engine ready!\n")
-    
+
+    @property
+    def news_analyzer(self):
+        """Lazy load NewsAnalyzer."""
+        if self._news_analyzer is None:
+            print("   📥 Loading NewsAnalyzer...")
+            from models.news_analyzer import NewsAnalyzer
+            self._news_analyzer = NewsAnalyzer()
+        return self._news_analyzer
+
+    @property
+    def event_store(self):
+        """Lazy load HistoricalEventStore."""
+        if self._event_store is None:
+            print("   📥 Loading HistoricalEventStore...")
+            from models.historical_matcher import HistoricalEventStore
+            self._event_store = HistoricalEventStore()
+        return self._event_store
+        
     def get_connection(self):
         """Get database connection."""
         # Prioritize DATABASE_URL (Render/production)
