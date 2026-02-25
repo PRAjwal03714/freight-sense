@@ -27,7 +27,7 @@ function App() {
   useEffect(() => {
     axios.get(`${API_BASE_URL}/api/routes`)
       .then(response => {
-        const portList = response.data.ports || [];
+        const portList = response.data.origins || response.data.ports || [];
         setPorts(portList);
         setOrigin(portList[0] || '');
         setDestination(portList[3] || '');
