@@ -76,8 +76,17 @@ class RiskExplainer:
                 print("   💡 Historical pattern matching available in local development")
                 
                 class MockEventStore:
+                    """Mock event store for production fallback."""
                     def find_similar_events(self, *args, **kwargs):
                         return []
+                    
+                    @property
+                    def collection(self):
+                        """Mock collection that returns count of 0."""
+                        class MockCollection:
+                            def count(self):
+                                return 0
+                        return MockCollection()
                 
                 self._event_store = MockEventStore()
             else:
