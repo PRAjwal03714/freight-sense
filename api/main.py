@@ -32,16 +32,31 @@ from api.ports import get_all_ports, validate_port, get_port_info
 
 app = FastAPI(
     title="FreightSense API",
-    description="Production Supply Chain Risk Intelligence API",
+    description="ML-powered supply chain risk intelligence",
     version="1.0.0"
 )
 
+# CORS middleware
+def get_cors_origins():
+    origins = [
+        "http://localhost:3000",
+        "https://freightsense.vercel.app",
+    ]
+    
+    # Add FRONTEND_URL from environment if set
+    frontend_url = os.getenv("FRONTEND_URL")
+    if frontend_url and frontend_url not in origins:
+        origins.append(frontend_url)
+    
+    return origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React dev server
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app",  # This allows all Vercel domains
 )
 
 # ============================================================================
