@@ -1,18 +1,10 @@
 """
 FastAPI Backend - Production Version
-
-Enhancements:
-- 50+ validated global ports
-- Route existence validation
-- Better error handling
-- Performance optimization
-- Proper logging
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
-from typing import Optional
 import sys
 import os
 import logging
@@ -37,51 +29,30 @@ app = FastAPI(
 )
 
 # CORS middleware
-def get_cors_origins():
-    origins = [
-        "http://localhost:3000",
-        "https://freightsense.vercel.app",
-    ]
-    
-    # Add FRONTEND_URL from environment if set
-    frontend_url = os.getenv("FRONTEND_URL")
-    if frontend_url and frontend_url not in origins:
-        origins.append(frontend_url)
-    
-    return origins
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_cors_origins(),
+    allow_origins=[
+        "http://localhost:3000",
+        "https://freightsense.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_origin_regex=r"https://.*\.vercel\.app",  # This allows all Vercel domains
+    allow_origin_regex=r"https://freightsense.*\.vercel\.app$",
 )
 
 # ============================================================================
-# Initialize (load models once at startup)
+# Startup Event - DO NOT load models at startup (memory constraints)
 # ============================================================================
-
-logger.info("🚀 Starting FreightSense API (Production Mode)...")
-explainer = None
 
 @app.on_event("startup")
 async def startup_event():
     logger.info("🚀 Starting FreightSense API (Production Mode)...")
     logger.info("✅ API ready! (Models will lazy-load on first request)")
-    
-    try:
-        explainer = RiskExplainer()
-        logger.info("✅ Models loaded successfully")
-        logger.info(f"📊 ChromaDB Events: {explainer.event_store.collection.count()}")
-        logger.info(f"🌐 Serving {len(get_all_ports())} global ports")
-    except Exception as e:
-        logger.error(f"❌ Failed to load models: {e}")
-        raise
+    logger.info(f"🌐 Serving {len(get_all_ports())} global ports")
 
 # ============================================================================
-# Request/Response Models with Validation
+# Request/Response Models
 # ============================================================================
 
 class RiskRequest(BaseModel):
@@ -92,7 +63,7 @@ class RiskRequest(BaseModel):
     @validator('origin', 'destination')
     def validate_port(cls, v):
         if not validate_port(v):
-            raise ValueError(f"Invalid port: {v}. Use /api/routes to see available ports.")
+            raise ValueError(f"Invalid port: {v}")
         return v
     
     @validator('destination')
@@ -112,23 +83,12 @@ def root():
         "service": "FreightSense API",
         "status": "operational",
         "version": "1.0.0",
-        "mode": "production",
-        "ports_available": len(get_all_ports()),
-        "endpoints": {
-            "routes": "/api/routes",
-            "port_info": "/api/ports/{port_name}",
-            "explain": "/api/explain",
-            "health": "/api/health"
-        }
+        "ports_available": len(get_all_ports())
     }
 
 @app.get("/api/routes")
 def get_routes():
-    """
-    Get all available ports (production registry).
-    
-    Returns 50+ major global container ports with validation.
-    """
+    """Get all available ports."""
     ports = get_all_ports()
     
     return {
@@ -140,51 +100,29 @@ def get_routes():
 
 @app.get("/api/ports/{port_name}")
 def get_port_details(port_name: str):
-    """
-    Get detailed information about a specific port.
-    
-    Includes: country, region, coordinates for weather API.
-    """
+    """Get detailed information about a specific port."""
     info = get_port_info(port_name)
     
     if not info:
         raise HTTPException(
             status_code=404,
-            detail=f"Port '{port_name}' not found. Use /api/routes to see available ports."
+            detail=f"Port '{port_name}' not found"
         )
     
-    return {
-        "port": port_name,
-        **info
-    }
+    return {"port": port_name, **info}
 
 @app.post("/api/explain")
-async def explain_risk(request: RiskRequest, background_tasks: BackgroundTasks):
+async def explain_risk(request: RiskRequest):
     """
     Generate comprehensive risk explanation.
-    
-    Production features:
-    - Input validation
-    - Error handling
-    - Logging
-    - Async background tasks
+    Models are loaded on first request (lazy loading).
     """
-    
+    logger.info("POST /api/explain")
     logger.info(f"📊 Risk request: {request.origin} → {request.destination}")
     
     try:
-        # Validate both ports exist
-        if not validate_port(request.origin):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid origin port: {request.origin}"
-            )
-        
-        if not validate_port(request.destination):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid destination port: {request.destination}"
-            )
+        # Create explainer on each request (lightweight due to lazy loading)
+        explainer = RiskExplainer()
         
         # Generate explanation
         explanation = explainer.explain_risk(
@@ -193,60 +131,32 @@ async def explain_risk(request: RiskRequest, background_tasks: BackgroundTasks):
         )
         
         logger.info(f"✅ Risk score: {explanation['risk_score']}/100")
-        
+        logger.info("Status: 200")
         return explanation
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"❌ Error: {str(e)}")
+        logger.info("Status: 500")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error: {str(e)}"
         )
 
-@app.get("/api/health")
+@app.get("/health")
 def health_check():
-    """Detailed system health check."""
-    
-    try:
-        chromadb_count = explainer.event_store.collection.count()
-        
-        return {
-            "status": "healthy",
-            "version": "1.0.0",
-            "mode": "production",
-            "components": {
-                "api": "operational",
-                "models_loaded": True,
-                "news_analyzer": "ready",
-                "chronos_forecast": "ready",
-                "weather_api": "ready",
-                "chromadb": {
-                    "status": "connected",
-                    "events_indexed": chromadb_count
-                }
-            },
-            "ports": {
-                "total_available": len(get_all_ports()),
-                "regions": ["Asia", "Europe", "Americas", "Middle East", "Africa", "Oceania"]
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return {
-            "status": "degraded",
-            "error": str(e)
-        }
+    """Simple health check."""
+    return {
+        "status": "healthy",
+        "version": "1.0.0"
+    }
 
 # ============================================================================
-# Production Logging
+# Request Logging
 # ============================================================================
 
 @app.middleware("http")
 async def log_requests(request, call_next):
-    """Log all requests for monitoring."""
+    """Log all requests."""
     logger.info(f"{request.method} {request.url.path}")
     response = await call_next(request)
     logger.info(f"Status: {response.status_code}")
