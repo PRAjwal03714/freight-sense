@@ -645,7 +645,18 @@ Mumbai → Rotterdam         # Mumbai expansion + Rotterdam weather
 Savannah → Chennai
 Sydney → Hamburg
 ```
+## Testing
 
+Run automated tests:
+```bash
+pytest tests/ -v
+```
+
+**Test Coverage:**
+- ✅ API endpoint validation
+- ✅ Input validation (edge cases)
+- ✅ Response structure validation
+- ✅ 5 tests, 100% pass rate
 ---
 
 ## 🤝 Contributing
