@@ -55,7 +55,7 @@ class RiskExplainer:
         self._event_store = None
         
         print("✅ Risk Explanation Engine ready!\n")
-
+    
     @property
     def news_analyzer(self):
         """Lazy load NewsAnalyzer."""
@@ -64,7 +64,7 @@ class RiskExplainer:
             from models.news_analyzer import NewsAnalyzer
             self._news_analyzer = NewsAnalyzer()
         return self._news_analyzer
-
+    
     @property
     def event_store(self):
         """Lazy load HistoricalEventStore (gracefully handles low-memory environments)."""
